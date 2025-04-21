@@ -1,6 +1,9 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import joblib
+
+model = joblib.load("ml_trade_model.pkl")
 
 def calculate_indicators(df):
     df['EMA20'] = df['Close'].ewm(span=20, adjust=False).mean()
@@ -42,7 +45,6 @@ def get_suggestion(symbol="BTC-USD", period_days=3):
         return {"symbol": symbol, "period_days": period_days, "error": "Veri indirilemedi"}
 
     df = calculate_indicators(df)
-
     df.dropna(inplace=True)
 
     if df.empty:
@@ -72,6 +74,7 @@ def get_suggestion(symbol="BTC-USD", period_days=3):
 
     suggestion = "Hold"
     rationale = []
+    confidence = None
 
     if rsi < 35:
         rationale.append(f"RSI düşük ({rsi:.2f}, < 35) → Alım sinyali")
@@ -82,6 +85,17 @@ def get_suggestion(symbol="BTC-USD", period_days=3):
 
     if len(rationale) >= 2:
         suggestion = "Buy"
+        
+    if suggestion == "Buy":
+        expected_exit = current_price * 1.025
+        features = pd.DataFrame([{
+            "price": current_price,
+            "rationale_count": len(rationale),
+            "pnl_pct": 2.5
+        }])
+        confidence_score = model.predict_proba(features)[0][1]
+        confidence = round(confidence_score * 100, 2)
+        suggestion = f"Buy (confidence: {confidence}%)"
 
     return {
         "symbol": symbol,
@@ -93,8 +107,9 @@ def get_suggestion(symbol="BTC-USD", period_days=3):
         "support_level": round(support, 2),
         "suggested_entry": round(current_price * 0.995, 2),
         "expected_exit": round(current_price * 1.025, 2),
-        "estimated_profit_pct": round(2.5, 2),
+        "estimated_profit_pct": 2.5,
         "suggestion": suggestion,
+        "confidence": confidence,
         "rationale": rationale if rationale else ["Belirgin bir sinyal yok."]
     }
 
