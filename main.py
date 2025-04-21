@@ -99,4 +99,4 @@ def get_suggestion(symbol="BTC-USD", period_days=3):
     }
 
 # Kullanım:
-print(get_suggestion("BTC-USDT", period_days=3))
+print(get_suggestion("BTC-USD", period_days=3))
